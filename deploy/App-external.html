@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Random App Name95414</title>
+
+    <script type="text/javascript" src="https://rally1.rallydev.com/apps/2.0/sdk.js"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function () {
+                Ext.define("CustomApp",{extend:"Rally.app.App",componentCls:"app",launch:function(){console.log("Basic Rally Grid"),this._loadData()},_loadData:function(){var myStore=Ext.create("Rally.data.wsapi.Store",{model:"User Story",autoLoad:!0,listeners:{load:function(store,data,success){console.log("get data: ",store,data,success),this._loadGrid(store)},scope:this},fetch:["FormattedID","Name","Owner","ScheduleState"]})},_loadGrid:function(store){var mygrid=Ext.create("Ext.Container",{items:[{xtype:"rallygrid",columnCfgs:["FormattedID","Name","Owner"],storeConfig:{model:"userstory"}}],renderTo:Ext.getBody()});console.log("my grid: ",mygrid),this.add(mygrid)}});
+
+            Rally.launchApp('CustomApp', {
+                name:"Random App Name95414",
+	            parentRepos:""
+            });
+
+        });
+    </script>
+
+
+    <style type="text/css">
+        
+    </style>
+</head>
+<body>
+</body>
+</html>
