@@ -4,17 +4,19 @@ Ext.define('CustomApp', {
     launch: function() {
         console.log('Basic Rally Grid');
 
-        this.pulldownContainer = Ext.create('Ext.container.Container', {
+        var pulldownContainer = Ext.create('Ext.container.Container', {
+            itemId: 'pulldown-container',
             layout: {
                 type: 'hbox',
                 align: 'stretch'
             }
         });
-        this.add(this.pulldownContainer);
+        this.add(pulldownContainer);
         this._loadIterations();
     },
     _loadIterations: function() {
-        this.iterPicker = Ext.create('Rally.ui.combobox.IterationComboBox', {
+        var iterPicker = Ext.create('Rally.ui.combobox.IterationComboBox', {
+            itemId: 'iter-picker',
             fieldLabel: 'Iteration',
             labelAlign: 'right',
             width: '300',
@@ -29,10 +31,11 @@ Ext.define('CustomApp', {
                 scope: this
             }
         });
-        this.pulldownContainer.add(this.iterPicker);
+        this.down('#pulldown-container').add(iterPicker);
     },
     _loadFieldValueCb: function() {
-        this.fieldValueCb = Ext.create('Rally.ui.combobox.FieldValueComboBox', {
+        var fieldValueCb = Ext.create('Rally.ui.combobox.FieldValueComboBox', {
+            itemId: 'field-value',
             fieldLabel: 'Owner',
             labelAlign: 'right',
             model: 'User Story',
@@ -47,34 +50,37 @@ Ext.define('CustomApp', {
                 scope: this
             }
         });
-        this.pulldownContainer.add(this.fieldValueCb);
+        this.down('#pulldown-container').add(fieldValueCb);
+    },
+    _getFilters: function(iterVal, ownerVal) {
+        var iterationFilter = Ext.create('Rally.data.wsapi.Filter', {
+            property: 'Iteration',
+            operation: '=',
+            value: iterVal
+        });
+        var ownerFilter = Ext.create('Rally.data.wsapi.Filter', {
+            property: 'Owner',
+            operation: '=',
+            value: ownerVal
+        });
+        return iterationFilter.and(ownerFilter);
     },
     _loadData: function() {
-        var iterRef = this.iterPicker.getRecord().get('_ref');
-        var owner = this.fieldValueCb.getRecord().get('value');
+        var iterRef = this.down('#iter-picker').getRecord().get('_ref');
+        var owner = this.down('#field-value').getRecord().get('value');
         console.log('SELECT OWNER: ', owner);
         console.log('iter ref: ', iterRef);
 
-        var myFilters = [
-            {
-                property: 'Iteration',
-                operation: '=',
-                value: iterRef
-            },{
-                property: 'Owner',
-                operation: '=',
-                value: owner
-            }
-        ];
+        var comboFilter = this._getFilters(iterRef, owner);
 
         if (this.myStore) {
-            this.myStore.setFilter(myFilters);
+            this.myStore.setFilter(comboFilter);
             this.myStore.load();
         } else {
             this.myStore = Ext.create('Rally.data.wsapi.Store', {
                 model: 'User Story',
                 autoLoad: true,
-                filters: myFilters,
+                filters: comboFilter,
                 listeners: {
                     load: function(store, data, success) {
                         console.log('store: ', store);
