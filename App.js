@@ -12,7 +12,7 @@ Ext.define('CustomApp', {
         xtype: 'container',
         itemId: 'text-container',
         layout: {
-            type: 'hbox',
+            type: 'anchor',
             align: 'stretch'
         }
     }],
@@ -59,12 +59,12 @@ Ext.define('CustomApp', {
                 filters: comboFilter,
                 listeners: {
                     load: function(store, data, success) {
+                        console.log()
                         var htmlStr = this._getArtifactHtml(store.getRecords());
-                        console.log(htmlStr)
                         if (!this.mytext) {
                             this._createText(htmlStr);
                         }
-                        this._setText(htmlStr)
+                        this._setText(htmlStr);
                     },
                     scope: this
                 },
@@ -77,37 +77,43 @@ Ext.define('CustomApp', {
         this.mytext = {
             itemId: 'texted',
             xtype: 'rallyrichtexteditor',
-            height: '400',
-            width: '500',
-            value: string
+            value: string,
+            style: {
+                width: '100%',
+                height: '100%'
+            }
         };
         this.down('#text-container').add(this.mytext);
     },
     _setText: function(string) {
-        this.down('#texted').setValue(string)
+        this.down('#texted').setValue(string);
     },
     _getArtifactHtml: function(records) {
         var htmlStr = '';
         Ext.Array.each(records, function(rec) {
-            recStr = rec.get('FormattedID') + ': ' + rec.get('Name')
-            pEst = rec.get('PlanEstimate')
-            if (pEst && pEst > 0) {
-                recStr = recStr + ' (' + pEst + 'pts)'
-            }
+            pEst = rec.get('PlanEstimate');
             schState = rec.get('ScheduleState');
-            if (schState == 'Accepted' || schState == 'Completed') {
-                htmlStr = htmlStr + '<font color="green">' + recStr + '</font><BR>'
-            } else if (schState == 'Incomplete') {
-                htmlStr = htmlStr + '<font color="red">' + recStr + '</font><BR>'
+
+            recStr = rec.get('FormattedID') + ': ' + rec.get('Name');
+
+            console.log('ART_HTML: ', pEst)
+            if (pEst && pEst > 0) {
+                recStr = recStr + ' (' + pEst + 'pts)';
             } else {
-                htmlStr = htmlStr + recStr + '<BR>'
+                if (state && state == 'Incomplete') {
+                    // Use revision history to get old status
+                    console.log("REV: ", rec.get('RevisionHistory'))
+                    recStr = recStr + ' (' + pEst + 'pts)';
+                }
             }
-            console.log(rec.get('FormattedID'));
-            console.log(rec.get('Name'));
-            console.log(rec.get('Owner'));
-            console.log(rec.get('ScheduleState'));
-            console.log(rec.get('PlanEstimate'));
-            console.log(rec.get('RevisionHistory'));
+
+            if (schState == 'Accepted' || schState == 'Completed') {
+                htmlStr = htmlStr + '<font color="green">' + recStr + '</font><BR>';
+            } else if (schState == 'Incomplete') {
+                htmlStr = htmlStr + '<font color="red">' + recStr + '</font><BR>';
+            } else {
+                htmlStr = htmlStr + recStr + '<BR>';
+            }
         });
         return htmlStr;
     }
