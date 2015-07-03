@@ -1,13 +1,4 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Random App Name87393</title>
-
-    <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
-
-    <script type="text/javascript">
-        Rally.onReady(function () {
-                Ext.define('CustomApp', {
+Ext.define('CustomApp', {
     extend: 'Rally.app.App',
     componentCls: 'app',
     items: [{
@@ -68,6 +59,7 @@
                 filters: comboFilter,
                 listeners: {
                     load: function(store, data, success) {
+                        console.log()
                         var htmlStr = this._getArtifactHtml(store.getRecords());
                         if (!this.mytext) {
                             this._createText(htmlStr);
@@ -103,9 +95,18 @@
             schState = rec.get('ScheduleState');
 
             recStr = rec.get('FormattedID') + ': ' + rec.get('Name');
+
+            console.log('ART_HTML: ', pEst)
             if (pEst && pEst > 0) {
                 recStr = recStr + ' (' + pEst + 'pts)';
+            } else {
+                if (state && state == 'Incomplete') {
+                    // Use revision history to get old status
+                    console.log("REV: ", rec.get('RevisionHistory'))
+                    recStr = recStr + ' (' + pEst + 'pts)';
+                }
             }
+
             if (schState == 'Accepted' || schState == 'Completed') {
                 htmlStr = htmlStr + '<font color="green">' + recStr + '</font><BR>';
             } else if (schState == 'Incomplete') {
@@ -113,35 +114,7 @@
             } else {
                 htmlStr = htmlStr + recStr + '<BR>';
             }
-            console.log(rec.get('FormattedID'));
-            console.log(rec.get('Name'));
-            console.log(rec.get('Owner'));
-            console.log(rec.get('ScheduleState'));
-            console.log(rec.get('PlanEstimate'));
-            console.log(rec.get('RevisionHistory'));
         });
         return htmlStr;
     }
 });
-
-
-            Rally.launchApp('CustomApp', {
-                name:"Random App Name87393",
-	            parentRepos:""
-            });
-
-        });
-    </script>
-
-
-
-    <style type="text/css">
-        .app {
-  /* Add app styles here */
-}
-
-    </style>
-</head>
-<body>
-</body>
-</html>
