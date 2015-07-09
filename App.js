@@ -59,7 +59,7 @@ Ext.define('CustomApp', {
                 filters: comboFilter,
                 listeners: {
                     load: function(store, data, success) {
-                        console.log()
+                        console.log(store)
                         var htmlStr = this._getArtifactHtml(store.getRecords());
                         if (!this.mytext) {
                             this._createText(htmlStr);
@@ -70,7 +70,6 @@ Ext.define('CustomApp', {
                 },
                 fetch: ['FormattedID', 'Name', 'Owner', 'ScheduleState', 'PlanEstimate', 'RevisionHistory']
             });
-            console.log('myStore: ', this.myStore);
         }
     },
     _createText: function(string) {
@@ -92,24 +91,24 @@ Ext.define('CustomApp', {
         var htmlStr = '';
         Ext.Array.each(records, function(rec) {
             pEst = rec.get('PlanEstimate');
-            schState = rec.get('ScheduleState');
+            state = rec.get('ScheduleState');
 
             recStr = rec.get('FormattedID') + ': ' + rec.get('Name');
 
-            console.log('ART_HTML: ', pEst)
             if (pEst && pEst > 0) {
                 recStr = recStr + ' (' + pEst + 'pts)';
             } else {
                 if (schState && schState == 'Incomplete') {
                     // Use revision history to get old status
-                    console.log("REV: ", rec.get('RevisionHistory'))
+                    revHis = rec.getProxy('RevisionHistory');
+                    console.log(revHis);
                     recStr = recStr + ' (' + pEst + 'pts)';
                 }
             }
 
-            if (schState == 'Accepted' || schState == 'Completed') {
+            if (state == 'Accepted' || state == 'Completed') {
                 htmlStr = htmlStr + '<font color="green">' + recStr + '</font><BR>';
-            } else if (schState == 'Incomplete') {
+            } else if (state == 'Incomplete') {
                 htmlStr = htmlStr + '<font color="red">' + recStr + '</font><BR>';
             } else {
                 htmlStr = htmlStr + recStr + '<BR>';
