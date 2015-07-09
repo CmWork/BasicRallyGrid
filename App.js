@@ -60,7 +60,7 @@ Ext.define('CustomApp', {
                 listeners: {
                     load: function(store, data, success) {
                         console.log(store)
-                        var htmlStr = this._getArtifactHtml(store.getRecords());
+                        var htmlStr = this._getArtifactHtml(data);
                         if (!this.mytext) {
                             this._createText(htmlStr);
                         }
@@ -68,7 +68,7 @@ Ext.define('CustomApp', {
                     },
                     scope: this
                 },
-                fetch: ['FormattedID', 'Name', 'Owner', 'ScheduleState', 'PlanEstimate', 'RevisionHistory']
+                fetch: ['FormattedID', 'Name', 'Owner', 'ScheduleState', 'PlanEstimate', 'RevisionHistory', 'Revisions', 'Description', 'RevisionNumber']
             });
         }
     },
@@ -87,9 +87,10 @@ Ext.define('CustomApp', {
     _setText: function(string) {
         this.down('#texted').setValue(string);
     },
-    _getArtifactHtml: function(records) {
+    _getArtifactHtml: function(data) {
         var htmlStr = '';
-        Ext.Array.each(records, function(rec) {
+        console.log(data)
+        Ext.Array.each(data, function(rec) {
             pEst = rec.get('PlanEstimate');
             state = rec.get('ScheduleState');
 
@@ -98,10 +99,13 @@ Ext.define('CustomApp', {
             if (pEst && pEst > 0) {
                 recStr = recStr + ' (' + pEst + 'pts)';
             } else {
-                if (schState && schState == 'Incomplete') {
+                if (state && state == 'Incomplete') {
                     // Use revision history to get old status
-                    revHis = rec.getProxy('RevisionHistory');
-                    console.log(revHis);
+                    // http://stackoverflow.com/questions/12694644/querying-for-user-story-revisions-in-rally
+                    Ext.Array.each(rec.get('RevisionHistory').Revisions, function(rev) {
+                    //     console.log(rev.RevisionNumber)
+                         console.log(rev)
+                    })
                     recStr = recStr + ' (' + pEst + 'pts)';
                 }
             }
