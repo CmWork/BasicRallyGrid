@@ -100,7 +100,7 @@ Ext.define('CustomApp', {
             if (pEst && pEst > 0) {
                 recStr = recStr + ' (' + pEst + 'pts)';
             } else {
-                if (state && state == 'Incomplete') {
+                if (schState && schState == 'Incomplete') {
                     // Use revision history to get old status
                     console.log("REV: ", rec.get('RevisionHistory'))
                     recStr = recStr + ' (' + pEst + 'pts)';
