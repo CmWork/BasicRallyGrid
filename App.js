@@ -59,7 +59,7 @@ Ext.define('CustomApp', {
                 filters: comboFilter,
                 listeners: {
                     load: function(store, data, success) {
-                        console.log()
+                        console.log();
                         var htmlStr = this._getArtifactHtml(store.getRecords());
                         if (!this.mytext) {
                             this._createText(htmlStr);
@@ -96,13 +96,13 @@ Ext.define('CustomApp', {
 
             recStr = rec.get('FormattedID') + ': ' + rec.get('Name');
 
-            console.log('ART_HTML: ', pEst)
+            console.log('ART_HTML: ', pEst);
             if (pEst && pEst > 0) {
                 recStr = recStr + ' (' + pEst + 'pts)';
             } else {
                 if (schState && schState == 'Incomplete') {
                     // Use revision history to get old status
-                    console.log("REV: ", rec.get('RevisionHistory'))
+                    console.log("REV: ", rec.get('RevisionHistory'));
                     recStr = recStr + ' (' + pEst + 'pts)';
                 }
             }
