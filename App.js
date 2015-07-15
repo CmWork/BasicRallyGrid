@@ -59,8 +59,13 @@ Ext.define('CustomApp', {
                 filters: comboFilter,
                 listeners: {
                     load: function(store, data, success) {
+<<<<<<< HEAD
                         console.log();
                         var htmlStr = this._getArtifactHtml(store.getRecords());
+=======
+                        console.log(store)
+                        var htmlStr = this._getArtifactHtml(data);
+>>>>>>> origin/master
                         if (!this.mytext) {
                             this._createText(htmlStr);
                         }
@@ -68,9 +73,8 @@ Ext.define('CustomApp', {
                     },
                     scope: this
                 },
-                fetch: ['FormattedID', 'Name', 'Owner', 'ScheduleState', 'PlanEstimate', 'RevisionHistory']
+                fetch: ['FormattedID', 'Name', 'Owner', 'ScheduleState', 'PlanEstimate', 'RevisionHistory', 'Revisions', 'Description', 'RevisionNumber']
             });
-            console.log('myStore: ', this.myStore);
         }
     },
     _createText: function(string) {
@@ -88,28 +92,40 @@ Ext.define('CustomApp', {
     _setText: function(string) {
         this.down('#texted').setValue(string);
     },
-    _getArtifactHtml: function(records) {
+    _getArtifactHtml: function(data) {
         var htmlStr = '';
-        Ext.Array.each(records, function(rec) {
+        console.log(data)
+        Ext.Array.each(data, function(rec) {
             pEst = rec.get('PlanEstimate');
-            schState = rec.get('ScheduleState');
+            state = rec.get('ScheduleState');
 
             recStr = rec.get('FormattedID') + ': ' + rec.get('Name');
 
+<<<<<<< HEAD
             console.log('ART_HTML: ', pEst);
+=======
+>>>>>>> origin/master
             if (pEst && pEst > 0) {
                 recStr = recStr + ' (' + pEst + 'pts)';
             } else {
-                if (schState && schState == 'Incomplete') {
+                if (state && state == 'Incomplete') {
                     // Use revision history to get old status
+<<<<<<< HEAD
                     console.log("REV: ", rec.get('RevisionHistory'));
+=======
+                    // http://stackoverflow.com/questions/12694644/querying-for-user-story-revisions-in-rally
+                    Ext.Array.each(rec.get('RevisionHistory').Revisions, function(rev) {
+                    //     console.log(rev.RevisionNumber)
+                         console.log(rev)
+                    })
+>>>>>>> origin/master
                     recStr = recStr + ' (' + pEst + 'pts)';
                 }
             }
 
-            if (schState == 'Accepted' || schState == 'Completed') {
+            if (state == 'Accepted' || state == 'Completed') {
                 htmlStr = htmlStr + '<font color="green">' + recStr + '</font><BR>';
-            } else if (schState == 'Incomplete') {
+            } else if (state == 'Incomplete') {
                 htmlStr = htmlStr + '<font color="red">' + recStr + '</font><BR>';
             } else {
                 htmlStr = htmlStr + recStr + '<BR>';
