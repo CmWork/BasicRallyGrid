@@ -67,25 +67,6 @@
                 filters: comboFilter,
                 listeners: {
                     load: function(store, stories) {
-                        // revModel = Rally.data.ModelFactory.getModel({
-                        //     type: 'RevisionHistory',
-                        //     success: function(model) {
-                        //         model.load(Rally.util.Ref.getOidFromRef(stories[0].get('RevisionHistory')), {
-                        //             success: function(record) {
-                        //                 console.log('NEW WAAY');
-                        //                 console.log(record);
-                        //                 // record.getCollection('Revisions').load({
-                        //                 //     fetch: ['Description'],
-                        //                 //     scope: this,
-                        //                 //     callback: function(revisions) {
-                        //                 //         console.log(revisions);
-                        //                 //     }
-                        //                 // });
-                        //             }
-                        //         });
-                        //     }
-                        // });
-
                         if (!this.mytext) {
                            this._createText(stories);
                         }
@@ -106,7 +87,10 @@
                 height: '100%'
             },
             listeners: {
-                ready: this._getArtifactHtml,
+                ready: function(stories) {
+                    console.log('TEXT FIELD READY');
+                    this._getArtifactHtml(stories);
+                },
                 scope: this
             }
         };
@@ -120,18 +104,30 @@
     },
     _loadRevHistoryModel: function(model, story){
         console.log("LOAD MODEL:");
+        var pEst = 0;
         model.load(Rally.util.Ref.getOidFromRef(story.get('RevisionHistory')), {
             success: function(record) {
                 record.getCollection('Revisions').load({
                     fetch: ['Description'],
                     scope: this,
                     callback: function(revisions) {
-                        console.log(revisions);
+                        var re = /PLAN ESTIMATE changed from \[(\d.\d) Points\] to \[(\d.\d) Points\]/;
+                        Ext.Array.each(revisions, function (rev) {
+                            matches = rev.data.Description.match(re);
+                            if (matches) {
+                                matches = matches.splice(1);
+                                if (matches[0] > 0) {
+                                    console.log(matches[0]);
+                                    this.pEst = matches[0];
+                                    return;
+                                }
+                            }
+                        });
                     }
                 });
             }
         });
-        return 1000;
+        return pEst;
     },
     _getArtifactHtml: function(data) {
         var htmlStr = '';
@@ -148,43 +144,8 @@
                         recStr = recStr + ' (' + pEst + 'pts)';
                     } else {
                         if (state && state == 'Incomplete') {
-                            // Use revision history to get old status
-
-                                // revModel = Rally.data.ModelFactory.getModel({
-                                //     type: 'RevisionHistory',
-                                //     success: function(model) {
-                                //         model.load(Rally.util.Ref.getOidFromRef(stories[0].get('RevisionHistory')), {
-                                //             success: function(record) {
-                                //                 record.getCollection('Revisions').load({
-                                //                     fetch: ['Description'],
-                                //                     scope: this,
-                                //                     callback: function(revisions) {
-                                //                         console.log(revisions);
-                                //                     }
-                                //                 });
-                                //             }
-                                //         });
-                                //     }
-                                // });
                             pEst = this._loadRevHistoryModel(model, rec);
                             recStr = recStr + ' (' + pEst + 'pts)';
-                            recStr = recStr + ' (77pts)';
-                            // console.log("OLD WAY");
-                            // console.log(rec.data.RevisionHistory);
-                            // rec.data.RevisionHistory.getCollection('Revisions').load({
-                            //     fetch: ['Description'],
-                            //     callback: function(revisions) {
-                            //         console.log(revisions);
-                            //     }
-                            // });
-                            // console.log("REV HIST");
-                            // console.log(rec.data.RevisionHistory);
-                            // console.log(rec.data.RevisionHistory.Revisions);
-                            // Ext.Array.each(rec.data.RevisionHistory.Revisions, function(rev) {
-                            //     console.log("REV");
-                            //     console.log(rev.RevisionNumber);
-                            // });
-
                         }
                     }
 
@@ -195,78 +156,13 @@
                     } else {
                         htmlStr = htmlStr + recStr + '<BR>';
                     }
-                    console.log("SET TEXT: " + htmlStr);
+                    console.log("SET TEXT");
                     this._setText(htmlStr);
                 },
                 scope: this
             });
-
-            // pEst = rec.get('PlanEstimate');
-            // state = rec.get('ScheduleState');
-
-            // recStr = rec.get('FormattedID') + ': ' + rec.get('Name');
-
-            // if (pEst && pEst > 0) {
-            //     recStr = recStr + ' (' + pEst + 'pts)';
-            // } else {
-            //     if (state && state == 'Incomplete') {
-            //         // Use revision history to get old status
-
-            //             // revModel = Rally.data.ModelFactory.getModel({
-            //             //     type: 'RevisionHistory',
-            //             //     success: function(model) {
-            //             //         model.load(Rally.util.Ref.getOidFromRef(stories[0].get('RevisionHistory')), {
-            //             //             success: function(record) {
-            //             //                 record.getCollection('Revisions').load({
-            //             //                     fetch: ['Description'],
-            //             //                     scope: this,
-            //             //                     callback: function(revisions) {
-            //             //                         console.log(revisions);
-            //             //                     }
-            //             //                 });
-            //             //             }
-            //             //         });
-            //             //     }
-            //             // });
-            //         revHisModel = Rally.data.ModelFactory.getModel({
-            //             type: 'RevisionHistory',
-            //             success: function(model) {
-            //                 pEst = this._loadRevHistoryModel(model, rec);
-            //                 recStr = recStr + ' (' + pEst + 'pts)';
-            //                 console.log(recStr);
-            //             },
-            //             scope: this
-            //         });
-            //         recStr = recStr + ' (77pts)';
-            //         // console.log("OLD WAY");
-            //         // console.log(rec.data.RevisionHistory);
-            //         // rec.data.RevisionHistory.getCollection('Revisions').load({
-            //         //     fetch: ['Description'],
-            //         //     callback: function(revisions) {
-            //         //         console.log(revisions);
-            //         //     }
-            //         // });
-            //         // console.log("REV HIST");
-            //         // console.log(rec.data.RevisionHistory);
-            //         // console.log(rec.data.RevisionHistory.Revisions);
-            //         // Ext.Array.each(rec.data.RevisionHistory.Revisions, function(rev) {
-            //         //     console.log("REV");
-            //         //     console.log(rev.RevisionNumber);
-            //         // });
-
-            //     }
-            // }
-
-            // if (state == 'Accepted' || state == 'Completed') {
-            //     htmlStr = htmlStr + '<font color="green">' + recStr + '</font><BR>';
-            // } else if (state == 'Incomplete') {
-            //     htmlStr = htmlStr + '<font color="red">' + recStr + '</font><BR>';
-            // } else {
-            //     htmlStr = htmlStr + recStr + '<BR>';
-            // }
         }, this);
-        console.log('RETURNING STRING');
-        //return htmlStr;
+        console.log("END _getArtifactHtml");
     }
 });
 
