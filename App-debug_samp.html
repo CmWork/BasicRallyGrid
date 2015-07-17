@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Revision History Examples</title>
+
+    <!--<script type="text/javascript" src="https://rally1.rallydev.com/apps/2.0/sdk-debug.js"></script>-->
+    <!--<script type="text/javascript" src="https://rally1.rallydev.com/apps/2.0/sdk.js"></script>-->
+    <script type="text/javascript" src="https://rally1.rallydev.com/apps/2.0rc2/sdk.js"></script>
+    <!--<script type="text/javascript" src="https://rally1.rallydev.com/apps/2.0p5/sdk.js"></script>-->
+
+    <script type="text/javascript">
+        Rally.onReady(function () {
+                Ext.define('Rally.apps.blockinghistory.BlockingHistoryApp', {
+    extend: 'Rally.app.TimeboxScopedApp',
+    scopeType: 'iteration',
+    requires: [
+        'Rally.ui.grid.Grid'
+    ],
+    componentCls: 'blockinghistory',
+    comboboxConfig: {
+        fieldLabel: 'Select Iteration:',
+        labelWidth: 100,
+        width: 300
+    },
+    launch: function() {
+        this.add({
+            xtype: 'container',
+            itemId: 'storyComponents',
+            componentCls: 'storyComponents'
+        }, {
+            xtype: 'container',
+            itemId: 'taskComponents',
+            componentCls: 'taskComponents'
+        }, {
+            xtype: 'container',
+            itemId: 'blockingHistoryComponents',
+            componentCls: 'blockingHistoryComponents'
+        });
+        this.callParent(arguments);
+    },
+    onScopeChange: function(scope) {
+        Ext.create('Rally.data.wsapi.Store', {
+            model: 'UserStory',
+            autoLoad: true,
+            fetch: ['FormattedID', '_ref', 'ScheduleState', 'Blocked', 'Tasks', 'RevisionHistory'],
+            filters: [
+                scope.getQueryFilter()
+            ],
+            listeners: {
+                load: this._getStoryRevisionHistory,
+                scope: this
+            }
+        });
+    },
+    _getStoryRevisionHistory: function(store, data) {
+        this._numberTimesStoryDataLoaded = 0;
+        this._currentStoryRecords = Ext.clone(data);
+        this._customStoryRecords = [];
+        if (data.length > 0) {
+            Rally.data.ModelFactory.getModel({
+                type: 'RevisionHistory',
+                scope: this,
+                success: function(model) {
+                    this._model = model;
+                    this._onRevisionHistoryModelLoaded();
+                }
+            });
+        } else {
+            this._showEmptyLabel();
+        }
+    },
+    _onRevisionHistoryModelLoaded: function() {
+        if (this._currentStoryRecords.length > 0) {
+            Ext.Array.each(this._currentStoryRecords, function(story, index) {
+                this._model.load(Rally.util.Ref.getOidFromRef(story.get('RevisionHistory')), {
+                    scope: this,
+                    success: function(record) {
+                        this._onStoryRevisionHistoryLoaded(story, record);
+                    }
+                });
+            }, this);
+        } else {
+            this._showEmptyLabel();
+        }
+    },
+    _showEmptyLabel: function() {
+        this._removeIfPresent([
+            this.down('#storyDisplay'),
+            this.down('#storyGrid'),
+            this.down('#taskDisplay'),
+            this.down('#taskGrid'),
+            this.down('#blockingHistoryGrid'),
+            this.down('#blockingHistoryDisplay')
+        ]);
+        this.down('#storyComponents').add({
+            xtype: 'displayfield',
+            itemId: 'storyDisplay',
+            value: 'There are no stories that have ever been blocked for ' + 
+                this.getContext().getTimeboxScope().getRecord().get('Name')
+        });
+    },
+    _onStoryRevisionHistoryLoaded: function(story, record) {
+        record.getCollection('Revisions').load({
+            fetch: ['Description'],
+            scope: this,
+            callback: function(revisions) {
+                this._onStoryRevisionsLoaded(revisions, story);
+            }
+        });
+    },
+    _onStoryRevisionsLoaded: function(revisions, story) {
+        Ext.Array.each(revisions, function(revision, revisionIndex) {
+            if (revision.get('Description').search("BLOCKED changed") !== -1 || story.get('Blocked')) {
+                this._customStoryRecords.push(story);
+                return false;
+            }
+        }, this);
+        this._numberTimesStoryDataLoaded++;
+        if (this._numberTimesStoryDataLoaded === this._currentStoryRecords.length) {
+            if (this._customStoryRecords.length > 0) {
+                Ext.Array.each(this._customStoryRecords, function(story, index) {
+                    this._getNumberBlockedTasks(story, index);
+                }, this);
+            } else {
+                this._showEmptyLabel();
+            }
+        }
+    },
+    _getNumberBlockedTasks: function(story, index) {
+        story.getCollection('Tasks').load({
+            fetch: ['RevisionHistory'],
+            scope: this,
+            callback: function(tasks) {
+                this._onTasksLoaded(tasks, index);
+            }
+        });
+    },
+    _onTasksLoaded: function(tasks, index) {
+        var blocked = 0, buildableGrid = false;
+        Ext.Array.each(tasks, function(task, innerIndex, tasks) {
+            if (task.get('Blocked')) blocked ++;
+            if (innerIndex === tasks.length-1) buildableGrid = true;
+            this._getMyTaskRevisionHistory(task, index, buildableGrid);
+        }, this);
+        this._customStoryRecords[index].numberBlocked = blocked;
+    },
+    _getMyTaskRevisionHistory: function(task, index, buildableGrid) {
+        this._model.load(Rally.util.Ref.getOidFromRef(task.get('RevisionHistory')), {
+            scope: this,
+            success: function(record) {
+                this._onMyTaskRevisionHistoryLoaded(record, index, task, buildableGrid);
+            }
+        });
+    },
+    _onMyTaskRevisionHistoryLoaded: function(record, index, task, buildableGrid) {
+        record.getCollection('Revisions').load({
+            fetch: ['Description'],
+            scope: this,
+            callback: function(revisions) {
+                this._loadMyTaskRevisionHistory(revisions, index, task, buildableGrid);
+            }
+        });
+    },
+    _loadMyTaskRevisionHistory: function(revisions, index, task, buildableGrid) {
+        Ext.Array.each(revisions, function(revision) {
+            if (revision.get('Description').search('BLOCKED changed') !== -1 || task.get('Blocked')) {
+                this._customStoryRecords[index].displayLink = true;
+                return false;
+            }
+        }, this);
+        if (index === this._customStoryRecords.length-1 && buildableGrid) {
+            this._buildStoryGrid();
+        }
+    },
+    _buildStoryGrid: function() {
+        this._removeIfPresent([
+            this.down('#storyDisplay'),
+            this.down('#taskDisplay'),
+            this.down('#taskGrid'),
+            this.down('#blockingHistoryGrid'),
+            this.down('#blockingHistoryDisplay')
+        ]);
+        this._customStoryRecords.sort(this._sortByFormattedID);
+        var customStore = Ext.create('Rally.data.custom.Store', {
+            data: this._customStoryRecords,
+            pageSize: this._customStoryRecords.length
+        });
+        if (!this.down('#storyGrid')) {
+            this.down('#storyComponents').add({
+                xtype: 'rallygrid',
+                itemId: 'storyGrid',
+                store: customStore,
+                columnCfgs: [
+                    {text: 'User Story', dataIndex: 'FormattedID', xtype: 'templatecolumn',
+                        tpl: Ext.create('Rally.ui.renderer.template.FormattedIDTemplate')},
+                    {text: 'Schedule State', dataIndex: 'ScheduleState', flex: 1},
+                    {text: 'Status', flex: 1, renderer: function(value, metaData, record) {
+                        if (record.get('Blocked')) return 'Blocked';
+                        return 'Active';
+                    }},
+                    {text: '# of Tasks', renderer: function(value, metaData, record) {
+                        return record.get('Tasks').Count;
+                    }},
+                    {text: '# Currently Blocked Tasks', flex: 1, renderer: function(value, metaData, record) {
+                        return record.numberBlocked;
+                    }},
+                    this._showTaskDetailsColumnCfg()
+                ]
+            });
+        } else {
+            this.down('#storyGrid').reconfigure(customStore);
+        }
+    },
+    _showTaskDetailsColumnCfg: function() {
+        return {
+            text: 'Task Details',
+            flex: 2,
+            renderer: function(value, metaData, record, rowIndex) {
+                if (record.displayLink) {
+                    return '<a href="#" class="link" id="' + rowIndex + '" onclick="return false;">Show Tasks</a>';
+                }
+                return '';
+            },
+            listeners: {
+                click: function(me, td, cellIndex, record, element) {
+                    if (element.target.className === "link") this._showTasks(parseInt(element.target.id, 10));
+                },
+                scope: this
+            }
+        };
+    },
+    _showTasks: function(index) {
+        this._selectedStory = this._customStoryRecords[parseInt(index, 10)];
+        this._customStoryRecords[parseInt(index, 10)].getCollection('Tasks').load({
+            fetch: ['FormattedID', 'Name', 'State', 'Blocked', 'Revisions', '_ref'],
+            scope: this,
+            callback: this._loadTaskRevisionHistory
+        });
+    },
+    _loadTaskRevisionHistory: function(tasks) {
+        this._numberTimesTaskDataLoaded = 0;
+        this._currentTaskRecords = Ext.clone(tasks);
+        this._customTaskRecords = [];
+        Ext.Array.each(this._currentTaskRecords, function(task, index) {
+            this._model.load(Rally.util.Ref.getOidFromRef(task.get('RevisionHistory')), {
+                scope: this,
+                success: function(record) {
+                    this._onTaskRevisionHistoryLoaded(task, record);
+                }
+            });
+        }, this);
+    },
+    _onTaskRevisionHistoryLoaded: function(task, record) {
+        record.getCollection('Revisions').load({
+            fetch: ['Description'],
+            scope: this,
+            callback: function(revisions) {
+                this._onTaskRevisionsLoaded(revisions, task);
+            }
+        });
+    },
+    _onTaskRevisionsLoaded: function(revisions, task) {
+        Ext.Array.each(revisions, function(revision, revisionIndex) {
+            if (revision.get('Description').search("BLOCKED changed") !== -1 || task.get('Blocked')) {
+                this._customTaskRecords.push(task);
+                return false;
+            }
+        }, this);
+        this._numberTimesTaskDataLoaded++;
+        if (this._numberTimesTaskDataLoaded === this._currentTaskRecords.length) {
+            this._buildTasksGrid(this._customTaskRecords);
+        }
+    },
+    _buildTasksGrid: function(tasks) {
+        this._addTasksGridDisplay();
+        this._removeIfPresent([
+            this.down('#blockingHistoryGrid'),
+            this.down('#blockingHistoryDisplay')
+        ]);
+        tasks.sort(this._sortByFormattedID);
+        var customStore = Ext.create('Rally.data.custom.Store', {
+            data: tasks,
+            pageSize: tasks.length
+        });
+        if (!this.down('#taskGrid')) {
+            this.down('#taskComponents').add({
+                xtype: 'rallygrid',
+                itemId: 'taskGrid',
+                store: customStore,
+                columnCfgs: [
+                    {text: 'Task', dataIndex: 'FormattedID', xtype: 'templatecolumn',
+                        tpl: Ext.create('Rally.ui.renderer.template.FormattedIDTemplate')},
+                    {text: 'Name', dataIndex: 'Name', flex: 2},
+                    {text: 'Schedule State', dataIndex: 'State', flex: 1},
+                    {text: 'Current Status', flex: 1, renderer: function(value, metaData, record) {
+                        if (record.get('Blocked')) return 'Blocked';
+                        return 'Active';
+                    }},
+                    this._showTaskHistoryColumnCfg()
+                ]
+            });
+        } else {
+            this.down('#taskGrid').reconfigure(customStore);
+        }
+    },
+    _showTaskHistoryColumnCfg: function() {
+        return {
+            text: 'Task History',
+            flex: 2,
+            renderer: function(value, metaData, record, rowIndex) {
+                return '<a href="#" class="link" id="' + rowIndex + '" onclick="return false;">Show Blocking History</a>';
+            },
+            listeners: {
+                click: function(me, td, cellIndex, record, element) {
+                    if (element.target.className === "link") this._showBlocking(parseInt(element.target.id, 10));
+                },
+                scope: this
+            }
+        };
+    },
+    _showBlocking: function(rowIndex) {
+        this._selectedTask = this._customTaskRecords[parseInt(rowIndex, 10)];
+        this._model.load(Rally.util.Ref.getOidFromRef(this._selectedTask.get('RevisionHistory')), {
+            scope: this,
+            success: function(record) {
+                this._onTaskRevisionHistoryLoadedAgain(this._selectedTask, record);
+            }
+        });
+    },
+    _onTaskRevisionHistoryLoadedAgain: function (task, record) {
+        record.getCollection('Revisions').load({
+            fetch: ['Description', 'CreationDate'],
+            scope: this,
+            callback: function(revisions) {
+                this._onTaskRevisionsLoadedAgain(revisions, task);
+            }
+        });
+    },
+    _onTaskRevisionsLoadedAgain: function (revisions, task) {
+        var dateCreated = task.get('CreationDate');
+        var currentStatus = task.get('Blocked');
+        var blockChanges = [];
+        if (revisions.length > 0) {
+            Ext.Array.each(revisions, function(revision) {
+                if (revision.get('Description').search('BLOCKED changed') !== -1) {
+                    blockChanges.push(revision);
+                }
+            }, this);
+        }
+        this._gatherBlockingHistory(blockChanges, dateCreated, currentStatus);
+    },
+    _gatherBlockingHistory: function(blockChanges, dateCreated, currentStatus) {
+        //reverse changes so array is sorted by first object is most recent
+        blockChanges.reverse();
+        var historyData = [], bDate = new Date(dateCreated), ubDate = 'Currently Blocked', lagTime = 'NA';
+        if (blockChanges.length === 0) {
+            historyData.push({blockedDate: bDate, unblockedDate: ubDate, lag: lagTime});
+        } else if (blockChanges.length === 1) {
+            if (currentStatus) {
+                bDate = new Date(blockChanges[0].get('CreationDate'));
+            } else {
+                ubDate = new Date(blockChanges[0].get('CreationDate'));
+                lagTime = 'somethin';
+            }
+            historyData.push({blockedDate: bDate, unblockedDate: ubDate, lag: lagTime});
+        } else {
+            for (var i = 0; i < blockChanges.length; i++) {
+                if (blockChanges[i].get('Description').search('\\[true\\] to \\[false\\]') !== -1) {
+                    lagTime = 'somethin';
+                    if (i === 0) {
+                            bDate = new Date(blockChanges[i].get('CreationDate'));
+                            ubDate = new Date(dateCreated);
+                    } else {
+                        bDate = new Date(blockChanges[i-1].get('CreationDate'));
+                        ubDate = new Date(blockChanges[i].get('CreationDate'));
+                    }
+                } else if (blockChanges[i].get('Description').search('\\[false\\] to \\[true\\]') !== -1 &&
+                        i === blockChanges.length-1) {
+                    lagTime = 'NA';
+                    bDate = new Date(blockChanges[i].get('CreationDate'));
+                    ubDate = 'Currently Blocked';
+                } else {
+                    continue;
+                }
+                historyData.push({blockedDate: bDate, unblockedDate: ubDate, lag: lagTime});
+            }
+        }
+        this._buildBlockingHistoryGrid(historyData);
+    },
+    _buildBlockingHistoryGrid: function(historyData) {
+        this._addBlockingHistoryDisplay();
+        var customStore = Ext.create('Rally.data.custom.Store', {
+            data: historyData,
+            pageSize: historyData.length
+        });
+        if (!this.down('#blockingHistoryGrid')) {
+            this.down('#blockingHistoryComponents').add({
+                xtype: 'rallygrid',
+                itemId: 'blockingHistoryGrid',
+                store: customStore,
+                columnCfgs: [
+                    {text: 'Blocked Date', dataIndex: 'blockedDate', flex: 1, renderer: function(value, metaData, record) {
+                        return Ext.Date.format(record.get('blockedDate'), 'Y/m/d');
+                    }},
+                    {text: 'Unblocked Date', dataIndex: 'unblockedDate', flex: 1, renderer: function(value, metaData, record) {
+                        if (record.get('lag') === 'NA') return 'Currently Blocked';
+                        else return Ext.Date.format(record.get('unblockedDate'), 'Y/m/d');
+                    }},
+                    {text: 'Lag Time', flex: 1, renderer: this._lagTimeRenderer}
+                ]
+            });
+        } else {
+            this.down('#blockingHistoryGrid').reconfigure(customStore);
+        }
+    },
+    _addTasksGridDisplay: function() {
+        if (this.down('#taskDisplay')) {
+            this.down('#taskDisplay').setValue(this._selectedStory.get('FormattedID'));
+        } else {
+            this.down('#taskComponents').add({
+                xtype: 'displayfield',
+                componentCls: 'task-display',
+                itemId: 'taskDisplay',
+                constantText: 'Tasks with Blocking History<br>User Story: ',
+                value: this._selectedStory.get('FormattedID'),
+                renderer: function(value, object) {
+                    return '<b>' + object.constantText + value + '</b>';
+                }
+            });
+        }
+    },
+    _addBlockingHistoryDisplay: function() {
+        if (this.down('#blockingHistoryDisplay')) {
+            this.down('#blockingHistoryDisplay').setValue(this._selectedTask.get('FormattedID'));
+        } else {
+            this.down('#blockingHistoryComponents').add({
+                xtype: 'displayfield',
+                componentCls: 'blocking-history-display',
+                itemId: 'blockingHistoryDisplay',
+                constantText: 'Blocking History for Task ',
+                value: this._selectedTask.get('FormattedID'),
+                renderer: function(value, object) {
+                    return '<b>' + object.constantText + value + '</b>';
+                }
+            });
+        }
+    },
+    _lagTimeRenderer: function(value, metaDat, record) {
+        if (record.get('lag') === 'NA') {
+            return 'NA';
+        }
+        var unblocked = new Date(record.get('unblockedDate'));
+        var blocked = new Date(record.get('blockedDate'));
+        //var minutesBetween = parseInt(record.get('lag'));
+        var minutes = Rally.util.DateTime.getDifference(unblocked, blocked, 'minute');
+        var hours = Rally.util.DateTime.getDifference(unblocked, blocked, 'hour');
+        var days = Rally.util.DateTime.getDifference(unblocked, blocked, 'day');
+        var months = Rally.util.DateTime.getDifference(unblocked, blocked, 'month');
+        var years = Rally.util.DateTime.getDifference(unblocked, blocked, 'year');
+        var message = '';
+        if (minutes <  60) {
+            message = '< 1 Hour';
+        }
+        if (years > 0) {
+            if (years === 1) message += '1 Year ';
+            else message += years + ' Years ';
+            hours = hours - (days*24);
+            days = days - (years*365);
+            months = months - (years*12);
+        }
+        if (months > 0) {
+            if (months === 1) message += '1 Month ';
+            else message += months + ' Months ';
+            hours = hours - (days*24);
+            days = days - (months*30);
+        }
+        if (days > 0) {
+            if (days === 1) message += '1 Day ';
+            else message += days + ' Days ';
+            hours = hours - (days*24);
+        }
+        if (hours > 0) {
+            if (hours === 1) message += '1 Hour';
+            else message += hours + ' Hours';
+        }
+        return message;
+    },
+    // Sort tasks by their formatted ID
+    _sortByFormattedID: function(obj1, obj2) {
+        if (obj1.get('FormattedID') < obj2.get('FormattedID')) return -1;
+        if (obj1.get('FormattedID') > obj2.get('FormattedID')) return 1;
+        return 0;
+    },
+    _removeIfPresent: function(objects) {
+        for (var k = 0; k < objects.length; k++) {
+            if (objects[k]) objects[k].up().remove(objects[k]);
+        }
+    }
+});
+            Rally.launchApp('Rally.apps.blockinghistory.BlockingHistoryApp', {
+                name:"BlockingHistory",
+                parentRepos:""
+            });
+        });
+    </script>
+
+
+    <style type="text/css">
+        .blockinghistory {
+    margin: 10px;
+}
+    </style>
+</head>
+<body></body>
+</html>
