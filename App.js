@@ -58,11 +58,12 @@ Ext.define('CustomApp', {
                 filters: comboFilter,
                 listeners: {
                     load: function(store, stories) {
+                        console.log('loadData -> getArtifactHtml');
+                        this._getArtifactHtml(stories);
+
                         if (!this.mytext) {
                            this._createText(stories);
                         }
-                        console.log('loadData -> getArtifactHtml');
-                        this._getArtifactHtml(stories);
                     },
                     scope: this
                 },
@@ -77,8 +78,22 @@ Ext.define('CustomApp', {
             style: {
                 width: '100%',
                 height: '100%'
-            }
+            },
+            listeners: {
+                boxready: {
+                    fn: function() {
+                        this._getArtifactHtml(stories);
+                    }
+                },
+                click: {
+                    element: 'el', //bind to the underlying el property on the panel
+                    fn: function(){ this._getArtifactHtml(stories); }
+                },
+                scope: this
+            },
+            scope: this
         };
+        console.log(this.mytext);
         this.down('#text-container').add(this.mytext);
     },
     _setText: function(string) {
@@ -118,6 +133,7 @@ Ext.define('CustomApp', {
     },
     _getArtifactHtml: function(data) {
         var htmlStr = '';
+        console.log("START _getArtifactHtml");
         Ext.Array.each(data, function(rec) {
             revHisModel = Rally.data.ModelFactory.getModel({
                 type: 'RevisionHistory',
